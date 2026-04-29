@@ -8,6 +8,12 @@ app.get('/user', (req, res) => {
     res.send({ name: 'Shivam', city: 'Uttar Pradesh' });
 });
 
+/**
+ * (req, res) => {
+    res.send({ name: 'Shivam', city: 'Uttar Pradesh' });
+} => This function is called route handler
+ */
+
 app.post('/user', async (req, res) => {
     console.log('body==', req.body);
     res.send("Data sucessfully saved to databasehghghg");
