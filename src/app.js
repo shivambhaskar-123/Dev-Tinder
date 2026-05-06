@@ -3,29 +3,28 @@ const express = require('express');
 // create an express application
 const app = express();
 
-const { adminAuth, userAuth } = require('./middlewares/auth')
 
-
-// handle auth middleware for all the GET, POST.....requests
-// app.use because it will handle all type of method request
-app.use("/admin", adminAuth);
-
-app.get('/admin/all-data', (req, res) => {
-    res.send('Admin all data send');
-});
-
-app.delete('/admin/delete-user', (req, res) => {
-    res.send('User deleted');
-});
-
-// As this use login req does need to be authenticated so no auth middleware
-app.post('/user/login', (req, res) => {
-    res.send('User logged In');
+app.get('/user/data', (req, res) => {
+    throw new Error('Something went wrong while fetching user data');
 })
-// req will first go through the userAuth middleware then to the request handler
-app.get('/user', userAuth, (req, res) => {
-    res.send('User all data send');
-});
+
+// Error handling using try catch which is the best way when doing any db call or others
+app.get('/user/data2', (req, res) => {
+    try {
+        // some code here
+        throw new Error('Something went wrong while fetching in try block');
+    } catch (error) {
+        res.status(500).send('Error: ' + error.message);
+    }
+})
+
+// Error handling using middleware it will match all routes as wild card
+
+app.use('/', (err, req, res, next) => {
+    if (err) {
+        res.status(500).send('Error: ' + err.message);
+    }
+})
 
 app.listen(3000, () => {
     console.log('Our server successfully listening on port 3000');
