@@ -159,6 +159,48 @@ app.put('/user/update', async (req, res) => {
 
 // UPDATE API FOR PRODUCTION READY APPLICATION
 
+app.patch('/user-update-industry-standard-way-one/:id', async (req, res) => {
+    try {
+        const ALLOWED_UPDATES = ['firstName', 'lastName', 'age', 'gender', 'photoUrl', 'about', 'password'];
+
+        const requestedUpdates = Object.keys(req.body);
+        const isValidOperation = requestedUpdates.every(key => ALLOWED_UPDATES.includes(key));
+
+        if (!isValidOperation) {
+            return res.status(400).send({ message: 'Invalid fields in update request' });
+        }
+
+        if (requestedUpdates.length === 0) {
+            return res.status(400).send({ message: 'No fields provided to update' });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { $set: req.body },
+            {
+                new: true,
+                runValidators: true,
+                select: '-password',   // never send password back in response
+                lean: true,            // plain object — faster, enough for sending response
+            }
+        );
+
+        if (!user) {
+            return res.status(404).send({ message: 'User not found' });
+        }
+
+        res.status(200).send({ user, message: 'Update Successful' });
+
+    } catch (err) {
+        if (err.code === 11000) {
+            return res.status(400).send({ message: 'Email already in use' });
+        }
+        res.status(500).send({ message: 'Something went wrong: ' + err?.message });
+    }
+});
+
+/********************************************************** */
+
 app.patch('/user/:id', async (req, res) => {
     /**
      * // ✅ schema is the single source of truth
@@ -199,13 +241,13 @@ const ALLOWED_UPDATES = Object.keys(User.schema.paths).filter(field =>
             return res.status(404).send({ message: 'User not found' });
         }
 
-        res.status(200).send({ ...user, message: 'Update Successful' });
+        res.status(200).send({ user, message: 'Update Successful' });
     }
     catch (err) {
         if (err.code === 11000) {
             return res.status(400).send({ message: 'Duplicate field value: ' + JSON.stringify(err.keyValue) });
         }
-        res.status(500).send({ message: 'Something went wrong: ' + err?.message });
+        res.status(500).send({ message: err?.message });
     }
 })
 
