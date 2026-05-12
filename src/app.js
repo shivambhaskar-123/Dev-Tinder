@@ -107,12 +107,44 @@ app.delete('/user', async (req, res) => {
 
 app.put('/user', async (req, res) => {
     try {
-        const user = await User.findByIdAndUpdate(req.body.id, req.body, { returnDocument: 'after' });
+        const user = await User.findByIdAndUpdate(req.body.id, req.body,
+            {
+                new: true,
+                overwrite: true,       // ← makes it a true replace
+                runValidators: true,
+                // returnDocument: 'after' // ← driver style,
+            }
+        );
         res.send({ ...user, message: 'Update Successfull' });
     } catch (err) {
         res.status(400).send("Something went wrong" + err?.message);
     }
 })
+
+// USE OF REPLACE ONE
+
+app.put('/user/update-by-replace-one', async (req, res) => {
+    try {
+        const { id, ...rest } = req.body; // separate id from fields
+
+        const result = await User.replaceOne(
+            { _id: id },   // find by this
+            rest,          // replace entire document with this
+            { runValidators: true }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send('User not found');
+        }
+
+        // replaceOne doesn't return the doc, fetch it manually
+        const updatedUser = await User.findById(id);
+        res.send({ ...updatedUser.toObject(), message: 'Update Successful' });
+
+    } catch (err) {
+        res.status(400).send("Something went wrong: " + err?.message);
+    }
+});
 
 // UPDATE USER BY EMAIL FIND
 
@@ -125,6 +157,78 @@ app.put('/user/update', async (req, res) => {
     }
 });
 
+// UPDATE API FOR PRODUCTION READY APPLICATION
+
+app.patch('/user/:id', async (req, res) => {
+    /**
+     * // ✅ schema is the single source of truth
+const ALLOWED_UPDATES = Object.keys(User.schema.paths).filter(field =>
+    !['_id', '__v', 'createdAt', 'updatedAt'].includes(field)
+);
+// automatically gives you every field in schema
+     */
+    const BLOCKED_FIELDS = ['_id', '__v', 'createdAt', 'updatedAt', 'password'];
+
+    const sanitizeUpdate = (body) => {
+        const sanitized = { ...body };
+        BLOCKED_FIELDS.forEach(field => delete sanitized[field]);
+        return sanitized;
+    }
+    try {
+        console.log(req.body);
+        console.log('id===', req.params.id)
+        const updateData = sanitizeUpdate(req.body);
+
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).send({ message: 'No valid fields to update!' });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { $set: updateData },
+            {
+                // new: true,
+                returnDocument: 'after',
+                runValidators: true,
+                select: '-password',   // never send password back in response
+                lean: true,            // plain object — faster, enough for sending response
+            }
+        );
+
+        if (!user) {
+            return res.status(404).send({ message: 'User not found' });
+        }
+
+        res.status(200).send({ ...user, message: 'Update Successful' });
+    }
+    catch (err) {
+        if (err.code === 11000) {
+            return res.status(400).send({ message: 'Duplicate field value: ' + JSON.stringify(err.keyValue) });
+        }
+        res.status(500).send({ message: 'Something went wrong: ' + err?.message });
+    }
+})
+
+/**
+ * You're passing req.body directly into findByIdAndUpdate without overwrite: true or $set. This actually runs a merge by default in Mongoose, which means your PUT is silently behaving like a PATCH
+ */
+
+// PARTIAL UPDATE
+
+app.patch('/user', async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(req.body.id, req.body,
+            {
+                returnDocument: 'after',
+                new: true,
+                runValidators: true
+            });
+        console.log(user)
+        res.send({ ...user, message: 'Update Successfull' });
+    } catch (err) {
+        res.status(400).send("Something went wrong" + err?.message);
+    }
+});
 
 
 /**
