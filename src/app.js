@@ -5,7 +5,7 @@ const app = express();
 const connectDB = require('./config/database')
 
 const User = require('./models/user');
-const { validateSignUpData } = require('./utils/validator');
+const { validateSignUpData, validateLoginApi } = require('./utils/validator');
 const bcrypt = require("bcrypt")
 // 1. Built-in Middleware: express.json() - Parses JSON in request body
 /**
@@ -41,6 +41,32 @@ app.post('/signup', async (req, res) => {
 
 
 });
+
+app.post('/login', async (req, res) => {
+
+    try {
+        const { email, password } = req.body;
+        validateLoginApi(req.body);
+
+        // Check if user exists in database
+        const userData = await User.findOne({ email: email });
+
+        if (!userData) {
+            throw new Error('Invalid credentials');
+        }
+        //now validate the password
+        // console.log(userData)
+        const isValidPassword = await bcrypt.compare(password, userData.password);
+
+        if (isValidPassword) {
+            res.send('Login successfull!');
+        } else {
+            throw new Error('Invalid credentials');
+        }
+    } catch (err) {
+        res.status(400).send("ERROR: " + err?.message);
+    }
+})
 
 app.get('/user', async (req, res) => {
     const userEmail = req.body;

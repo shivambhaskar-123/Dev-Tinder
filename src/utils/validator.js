@@ -20,6 +20,16 @@ const validateSignUpData = (reqBody) => {
     }
 };
 
+const validateLoginApi = (req) => {
+    const { email, password } = req;
+    if (!email || !password) {
+        throw new Error('Email and password are required');
+    } else if (!validator.isEmail(email)) {
+        throw new Error('Please provide a valid email');
+    }
+}
+
 module.exports = {
-    validateSignUpData
+    validateSignUpData,
+    validateLoginApi
 }
