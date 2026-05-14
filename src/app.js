@@ -5,7 +5,8 @@ const app = express();
 const connectDB = require('./config/database')
 
 const User = require('./models/user');
-
+const { validateSignUpData } = require('./utils/validator');
+const bcrypt = require("bcrypt")
 // 1. Built-in Middleware: express.json() - Parses JSON in request body
 /**
  * It reads the JSON object converts it into a javascript object and its add that javascript object back to all of the request object in the body as app.use will work for all the routes if we do not use it then we will se req.body will print undefined.
@@ -13,19 +14,29 @@ const User = require('./models/user');
 app.use(express.json());
 
 app.post('/signup', async (req, res) => {
-    // Creating new instance of the USer model
-    // console.log(req.body);
-    const user = new User(req.body);
-
-    // User.save() will return a promise that is why we need to use await here so that is why this func will be async
-
-    //NOTE whenever doing any db operation it is always recommended to do in try catch block
 
     try {
+        // First validation of data
+        validateSignUpData(req.body);
+        // second Encrypt the password
+
+        const { firstName, lastName, email, password } = req.body;
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        console.log('passwordHAsh', passwordHash);
+        const newUser = {
+            // ...req.body,// NOTE  DO not send all data coming from request extract only which are necessary so that other jargons can be ignored it will ignored any way if it is not defined in our schema but for safe side we do this
+            firstName,
+            lastName,
+            email,
+            password: passwordHash
+        }
+        const user = new User(newUser);
+
         await user.save();
         res.send('User added Successfully!');
     } catch (err) {
-        res.status(400).send("Error saving the data" + err?.message);
+        res.status(400).send("ERROR: " + err?.message);
     }
 
 

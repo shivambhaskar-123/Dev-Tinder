@@ -46,7 +46,7 @@ const UserSchema = new Schema(
         age: {
             type: Number,
             min: [18, 'User must be at least 18 years old'],
-            max: [120, 'Please enter a valid age'],  // catches garbage like age: 9999
+            // max: [120, 'Please enter a valid age'],  // catches garbage like age: 9999
             validate(value) {
                 if (!Number.isInteger(value)) {
                     throw new Error('Age must be a whole number');
