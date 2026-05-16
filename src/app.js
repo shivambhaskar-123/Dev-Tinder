@@ -70,7 +70,8 @@ app.post('/login', async (req, res) => {
             // const token = 'akdlaskdlakaADfsks?skmfksfslflss';
 
             // send jwt token if success
-            const token = userData.getJWT();
+            const token = await userData.getJWT();
+            console.log("token===", token);
             res.cookie("token", token);
             res.send('Login successfull!');
         } else {
