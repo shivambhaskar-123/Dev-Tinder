@@ -1,5 +1,7 @@
-const express = require('express');
+// app.js — first line, before every other require
+require("dotenv").config();
 
+const express = require('express');
 // create an express application
 const app = express();
 const connectDB = require('./config/database')
@@ -7,11 +9,16 @@ const connectDB = require('./config/database')
 const User = require('./models/user');
 const { validateSignUpData, validateLoginApi } = require('./utils/validator');
 const bcrypt = require("bcrypt")
+const cookieParser = require('cookie-parser');
+const jwt = require("jsonwebtoken");
+
 // 1. Built-in Middleware: express.json() - Parses JSON in request body
 /**
  * It reads the JSON object converts it into a javascript object and its add that javascript object back to all of the request object in the body as app.use will work for all the routes if we do not use it then we will se req.body will print undefined.
  */
 app.use(express.json());
+
+app.use(cookieParser());
 
 app.post('/signup', async (req, res) => {
 
@@ -59,6 +66,12 @@ app.post('/login', async (req, res) => {
         const isValidPassword = await bcrypt.compare(password, userData.password);
 
         if (isValidPassword) {
+
+            // const token = 'akdlaskdlakaADfsks?skmfksfslflss';
+
+            // send jwt token if success
+            const token = jwt.sign({ _id: userData._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+            res.cookie("token", token);
             res.send('Login successfull!');
         } else {
             throw new Error('Invalid credentials');
@@ -66,7 +79,30 @@ app.post('/login', async (req, res) => {
     } catch (err) {
         res.status(400).send("ERROR: " + err?.message);
     }
-})
+});
+
+// PROFILE API
+
+app.get('/profile', async (req, res) => {
+    try {
+        console.log(req.cookies);
+        const { token } = req.cookies;
+
+        if (!token) {
+            throw new Error('Invalid token');
+        }
+        // verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log(decoded);
+        const user = await User.findById(decoded?._id);
+        if (!user) {
+            throw new Error('User not found');
+        }
+        res.send(user);
+    } catch (err) {
+        res.status(400).send("ERROR: " + err?.message);
+    }
+});
 
 app.get('/user', async (req, res) => {
     const userEmail = req.body;
