@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 
 const { Schema } = mongoose;
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const UserSchema = new Schema(
     {
@@ -125,6 +127,104 @@ const UserSchema = new Schema(
         timestamps: true // automatically add the createdAt, and updatedAt
     }
 );
+
+// ─────────────────────────────────────────
+// INSTANCE METHODS  (called on one document) of that particular instance
+// ─────────────────────────────────────────
+
+// 1. Compare password — used in login, change-password
+
+UserSchema.methods.isPasswordValid = async function (passwordEnteredByUSer) {
+    // 'this' refers to the current user document
+    const user = this;
+    return await bcrypt.compare(passwordEnteredByUSer, user.password);
+    // return await bcrypt.compare(candidatePassword, this.password); // same as above
+}
+
+// 2. Generate JWT — used in login, signup
+
+UserSchema.methods.getJWT = async function () {
+    const user = this;
+    const token = await jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    return token;
+}
+
+// 3. Get public profile — strip sensitive fields before sending response
+// instead of remembering to do select('-password') everywhere
+UserSchema.methods.toPublicProfile = function () {
+    const user = this.toObject();   // convert mongoose doc to plain object
+    delete user.password;
+    delete user.__v;
+    return user;
+};
+
+// ─────────────────────────────────────────
+// STATIC METHODS  (called on Model directly)
+// ─────────────────────────────────────────
+
+// 1. Find by credentials — login logic lives here, not in route
+UserSchema.statics.findByCredentials = async function (email, password) {
+    // 'this' refers to the User Model
+    const user = await this.findOne({ email: email.toLowerCase().trim() });
+
+    if (!user) {
+        // same message for wrong email and wrong password — don't leak which one
+        throw new Error('AUTH_FAILED');
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+        throw new Error('AUTH_FAILED');
+    }
+
+    return user;
+};
+
+// 2. Find by email — used in multiple places
+UserSchema.statics.findByEmail = async function (email) {
+    return await this.findOne({ email: email.toLowerCase().trim() });
+};
+
+// ─────────────────────────────────────────
+// VIRTUALS  (computed fields, not stored in DB)
+// ─────────────────────────────────────────
+
+// 1. Full name — derived from firstName + lastName
+UserSchema.virtual('fullName').get(function () {
+    // return `${this.firstName} ${this.lastName}`.trim();
+    return this.lastName
+        ? `${this.firstName} ${this.lastName}`
+        : this.firstName;
+});
+
+// 2. Profile completion percentage
+UserSchema.virtual('profileCompletion').get(function () {
+    const fields = ['firstName', 'lastName', 'email', 'age', 'gender', 'photoUrl', 'about', 'skills'];
+})
+
+// ─────────────────────────────────────────
+// PRE HOOKS  (runs before DB operations)
+// ─────────────────────────────────────────
+
+// hash password before save — you already have this
+// UserSchema.pre('save', async function (next) {
+//     if (this.isModified('password')) {
+//         this.password = await bcrypt.hash(this.password, 10);
+//     }
+//     next();
+// });
+
+
+
+/** User Schema methods:
+ * statics:    available on the Model (User.find(), User.create())
+ * methods:    available on the Instance (user.save(), user.remove())
+ * virtuals:   computed properties (user.fullName)
+ * getters:    modify how a field is retrieved (user.email -> lowercase)
+ * setters:    modify how a field is set (user.email = 'FOO@BAR.COM' -> 'foo@bar.com')
+ * middleware: functions that run before/after certain operations (pre/post hooks)
+ */
 
 /**
  * Every String field   →  trim, maxlength (prevent DB bloat)
