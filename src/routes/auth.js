@@ -56,7 +56,6 @@ authRoutes.post('/login', async (req, res) => {
 
             // send jwt token if success
             const token = await userData.getJWT();
-            console.log("token===", token);
             res.cookie("token", token);
             res.send('Login successfull!');
         } else {
@@ -66,5 +65,14 @@ authRoutes.post('/login', async (req, res) => {
         res.status(400).send("ERROR: " + err?.message);
     }
 });
+
+authRoutes.post('/logout', async (req, res) => {
+    try {
+        res.clearCookie('token');
+        res.send('Logout successful!');
+    } catch (err) {
+        res.status(400).send("ERROR: " + err?.message);
+    }
+})
 
 module.exports = authRoutes

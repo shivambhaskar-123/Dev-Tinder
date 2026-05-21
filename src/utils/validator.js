@@ -29,7 +29,21 @@ const validateLoginApi = (req) => {
     }
 }
 
+const validateProfileEditData = (reqBody) => {
+    if (!reqBody || Object.keys(reqBody).length === 0) {
+        throw new Error('Please provide data to update');
+    }
+    const { firstName, lastName, email, age } = reqBody;
+    const allowedFields = [
+        'firstName', 'lastName', 'age', 'photoUrl', 'about', 'skills', 'gender'];
+    const isUpdateAllowed = Object.keys(reqBody).every(field => allowedFields.includes(field));
+    if (!isUpdateAllowed) {
+        throw new Error('Invalid update fields');
+    }
+}
+
 module.exports = {
     validateSignUpData,
-    validateLoginApi
+    validateLoginApi,
+    validateProfileEditData
 }
